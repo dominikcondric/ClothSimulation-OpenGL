@@ -8,8 +8,7 @@ git clone --recurse-submodules https://github.com/dominikcondric/ClothSimulation
 ## About the project
 Project contains a cloth simulation written in C++/GLSL with minimal dependencies with a goal of understanding computer simulation and related subjects such as 
 mathematical models behind simulations as well as numerical integration methods. Mathematical model behind this cloth simulation is a mass-spring model
-based on Newtonian mechanics with addition of extrenal forces of gravity and wind acting on the cloth. Scene also contains a sphere that collides with the cloth
-as well as point light source and skybox. All physics computation is done on the CPU, but that could be transferred to GPU in the future.
+based on Newtonian mechanics with addition of external forces of gravity and wind acting on the cloth. Integration is done using Verlet integration method with variable timestep so damping force is adaptive to stabilize the simulation. Scene also contains a sphere that collides with the cloth as well as point light source and skybox. All physics computation is done on the CPU, but that could be transferred to GPU in the future.
 
 ## Controls
 **Right arrow** - moves sphere in positive x direction of a scene camera  
