@@ -17,7 +17,7 @@ int main()
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.f);
 
-	Camera cam;
+	PerspectiveCamera cam;
 	
 	// Collision sphere
 	std::unique_ptr<Sphere> sphere(new Sphere(50, 30, 0.5f));
@@ -104,7 +104,23 @@ int main()
 		if (window->isKeyPressed(GLFW_KEY_RIGHT_SHIFT)) sphereTranslation.y += window->getTime().deltaTime * 10.f;
 		if (window->isKeyPressed(GLFW_KEY_RIGHT_CONTROL)) sphereTranslation.y -= window->getTime().deltaTime * 10.f;
 		sphere->translate(sphereTranslation);
-		cam.update(*window);
+		
+		if (window->isKeyPressed(GLFW_KEY_W))
+			cam.moveCamera(Camera::Directions::FORWARD, window->getTime().deltaTime);
+		if (window->isKeyPressed(GLFW_KEY_S))
+			cam.moveCamera(Camera::Directions::BACKWARD, window->getTime().deltaTime);
+		if (window->isKeyPressed(GLFW_KEY_A))
+			cam.moveCamera(Camera::Directions::LEFT, window->getTime().deltaTime);
+		if (window->isKeyPressed(GLFW_KEY_D))
+			cam.moveCamera(Camera::Directions::RIGHT, window->getTime().deltaTime);
+		if (window->isKeyPressed(GLFW_KEY_SPACE))
+			cam.moveCamera(Camera::Directions::UP, window->getTime().deltaTime);
+		if (window->isKeyPressed(GLFW_KEY_LEFT_SHIFT))
+			cam.moveCamera(Camera::Directions::DOWN, window->getTime().deltaTime);
+
+		if (window->isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT))
+			cam.rotateCamera(window->getCursorOffset());
+
 		window->onUpdate();
 	} while (!window->shouldClose());
 }

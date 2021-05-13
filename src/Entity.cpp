@@ -2,7 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-Entity::Entity() : rotationQuat(glm::angleAxis(1.f, glm::vec3(1.f, 0.f, 0.f)))
+Entity::Entity() : rotationQuat(glm::angleAxis(0.f, glm::vec3(1.f, 0.f, 0.f)))
 {
 	glGenBuffers(1, &vbo);
 	glGenVertexArrays(1, &vao);

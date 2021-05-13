@@ -65,8 +65,9 @@ void Cloth::updatePhysics(const Time& t, const Sphere& sphere)
 		p.transformedPosition = glm::vec3(getTransformMatrix() * glm::vec4(p.initialPosition, 1.f));
 		const glm::vec3 currentPosition = p.transformedPosition + translations[i];
 		p.forces += particleMass * glm::vec3(0.f, -9.81f, 0.f);
-		if (wind) p.forces += generateWindVector(currentPosition, t.runningTime) *  glm::vec3(3.f, 1.f, 3.f);
-		p.forces += generateAirResistanceVector(5.f * t.frameRate * t.frameRate, newVelocity);
+		if (wind) 
+			p.forces += generateWindVector(currentPosition, t.runningTime) * glm::vec3(3.f, 1.f, 3.f);
+		p.forces += generateAirResistanceVector(10.f * t.frameRate * t.frameRate, newVelocity);
 	}
 
 	for (const auto& spring : springs)
@@ -170,9 +171,9 @@ void Cloth::constructModel(size_t horizontalCount, size_t verticalCount)
 
 glm::vec3 Cloth::generateWindVector(const glm::vec3& factor, const float time) const
 {
-	return glm::vec3(glm::sin(time * factor.z), 
+	return glm::vec3(glm::sin(time * factor.z * 30.f), 
 				glm::cos(time) * glm::sin(time), 
-				glm::sin(time * factor.x));
+				glm::sin(time * factor.x * 20.f));
 }
 
 glm::vec3 Cloth::generateAirResistanceVector(const float factor, const glm::vec3& velocity) const

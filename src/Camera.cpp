@@ -1,54 +1,70 @@
 #include "Camera.h"
 #include <iostream>
+#include <glm/gtx/string_cast.hpp>
 
-#define ROTATIONAL_MOVE deltaTime
-#define SPACE_MOVE (deltaTime * 10)
+#define SPACE_MOVE (moveLength * deltaTime)
 #define FULL_CIRCLE (2 * glm::pi<float>())
 
-Camera::Camera() : eye(glm::vec3(0.f, 7.f, 10.f)), center(glm::vec3(0.f, 0.f, 0.f)), lookUp(glm::vec3(0.f, 1.f, 0.f)), view(glm::lookAt(eye, center, lookUp))
+Camera::Camera()
 {
-	wDirection = glm::normalize(center - eye);
-	uDirection = glm::cross(wDirection, lookUp);
-	vDirection = glm::cross(uDirection, wDirection);
-	if (wDirection.z < 0.0f) pitch = acos(glm::dot(glm::vec3(0.f, 0.f, -1.f), wDirection));
-	else pitch = acos(glm::dot(glm::vec3(0.f, 0.f, 1.f), wDirection));
-	if (wDirection.y < 0) pitch *= -1;
-
-
-	if (wDirection.z < 0.0f) yaw = FULL_CIRCLE - acos(glm::dot(glm::vec3(1.f, 0.f, 0.f), wDirection));
-	else yaw = acos(glm::dot(glm::vec3(1.f, 0.f, 0.f), wDirection));
-
-	wDirection.x = 0;
-	wDirection.z = sin(yaw) * cos(pitch);
-	wDirection.y = sin(pitch);
-	center = eye + wDirection;
-	view = glm::lookAt(eye, center, lookUp);
-
-	projection = glm::perspective(glm::radians(45.f), 1024.f / 768.f, 1.f, 100.f);
-
+	recalculateEulerAngles();
 }
 
-void Camera::update(const Window& win)
+void Camera::recalculateEulerAngles()
 {
-	if (win.isKeyPressed(GLFW_KEY_W)) moveCamera(Directions::FORWARD, win.getTime().deltaTime);
-	if (win.isKeyPressed(GLFW_KEY_A)) moveCamera(Directions::LEFT, win.getTime().deltaTime);
-	if (win.isKeyPressed(GLFW_KEY_S)) moveCamera(Directions::BACKWARD, win.getTime().deltaTime);
-	if (win.isKeyPressed(GLFW_KEY_D)) moveCamera(Directions::RIGHT, win.getTime().deltaTime);
-	if (win.isKeyPressed(GLFW_KEY_SPACE)) moveCamera(Directions::UP, win.getTime().deltaTime);
-	if (win.isKeyPressed(GLFW_KEY_LEFT_SHIFT)) moveCamera(Directions::DOWN, win.getTime().deltaTime);
+	wDirection = glm::normalize(center - position);
+	center = position + wDirection;
+	uDirection = glm::cross(wDirection, lookUp);
+	vDirection = glm::cross(uDirection, wDirection);
 
-	if (win.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) rotateCamera(win.getCursorOffset());
-	GLint viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
-	projection = glm::perspective(45.f, (float)viewport[2] / viewport[3], 0.1f, 100.f);
+	pitch = glm::asin(glm::dot(glm::vec3(0.f, 1.f, 0.f), wDirection));
+	yaw = glm::atan(glm::dot(glm::vec3(0.f, 0.f, -1.f), wDirection) / glm::dot(glm::vec3(1.f, 0.f, 0.f), wDirection));
+
+	if (wDirection.z < 0.f) 
+	{
+		yaw = FULL_CIRCLE - yaw;
+	}
+
+	view = glm::lookAt(position, center, lookUp);
+	viewChanged = true;
+}
+
+void Camera::setPosition(const glm::vec3& position)
+{
+	this->position = position;
+	center = position + wDirection;
+	view = glm::lookAt(position, center, lookUp);
+	viewChanged = true;
+}
+
+void Camera::setCenter(const glm::vec3& center)
+{
+	this->center = center;
+	recalculateEulerAngles();
+}
+
+void Camera::setUp(const glm::vec3& up)
+{
+	lookUp = up;
+	recalculateEulerAngles();
+}
+
+void Camera::setProjectionNearPlane(float near)
+{
+	nearPlane = near;
+	project();
+}
+
+void Camera::setProjectionFarPlane(float far)
+{
+	farPlane = far;
+	project();
 }
 
 void Camera::rotateCamera(const glm::vec2& cursorOffset)
 {
-	float mouseOffsetX = 0.f;
-	float mouseOffsetY = 0.f;
-	mouseOffsetX = cursorOffset.x;
-	mouseOffsetY = cursorOffset.y;
+	float mouseOffsetX = cursorOffset.x;
+	float mouseOffsetY = cursorOffset.y;
 
 	yaw += mouseOffsetX * mouseSensitivity;
 	if (yaw < 0.f)
@@ -59,51 +75,123 @@ void Camera::rotateCamera(const glm::vec2& cursorOffset)
 	if (pitch + (mouseOffsetY * mouseSensitivity) < glm::pi<float>() / 2 && pitch + (mouseOffsetY * mouseSensitivity) > -glm::pi<float>() / 2)
 		pitch += mouseOffsetY * mouseSensitivity;
 
-	wDirection.x = cos(yaw) * cos(pitch);
-	wDirection.y = sin(pitch);
-	wDirection.z = sin(yaw) * cos(pitch);
+	wDirection.x = glm::cos(yaw) * glm::cos(pitch);
+	wDirection.y = glm::sin(pitch);
+	wDirection.z = glm::sin(yaw) * glm::cos(pitch);
 	wDirection = glm::normalize(wDirection);
-	center = eye + wDirection;
+	center = position + wDirection;
 	uDirection = glm::cross(wDirection, lookUp);
 	vDirection = glm::cross(uDirection, wDirection);
 
-	view = glm::lookAt(eye, center, lookUp);
+	view = glm::lookAt(position, center, lookUp);
+	viewChanged = true;
+}
+
+void Camera::setMouseSensitivity(float sensitivity)
+{
+	mouseSensitivity = sensitivity;
+	recalculateEulerAngles();
+}
+
+void Camera::setMoveSensitivity(float sensitivity)
+{
+	moveLength = sensitivity;
+	recalculateEulerAngles();
 }
 
 void Camera::moveCamera(Directions direction, float deltaTime)
 {
 	switch (direction)
 	{
-	case Directions::FORWARD:
-		eye += wDirection * SPACE_MOVE;
-		center += wDirection * SPACE_MOVE;
-		break;
+		case Directions::FORWARD:
+			position += wDirection * SPACE_MOVE;
+			center += wDirection * SPACE_MOVE;
+			break;
 
-	case Directions::BACKWARD:
-		eye -= wDirection * SPACE_MOVE;
-		center -= wDirection * SPACE_MOVE;
-		break;
+		case Directions::BACKWARD:
+			position -= wDirection * SPACE_MOVE;
+			center -= wDirection * SPACE_MOVE;
+			break;
 
-	case Directions::LEFT:
-		eye -= uDirection * SPACE_MOVE;
-		center -= uDirection * SPACE_MOVE;
-		break;
+		case Directions::LEFT:
+			position -= uDirection * SPACE_MOVE;
+			center -= uDirection * SPACE_MOVE;
+			break;
 
-	case Directions::RIGHT:
-		eye += uDirection * SPACE_MOVE;
-		center += uDirection * SPACE_MOVE;
-		break;
+		case Directions::RIGHT:
+			position += uDirection * SPACE_MOVE;
+			center += uDirection * SPACE_MOVE;
+			break;
 
-	case Directions::UP:
-		eye += lookUp * SPACE_MOVE;
-		center += lookUp * SPACE_MOVE;
-		break;
+		case Directions::UP:
+			position += lookUp * SPACE_MOVE;
+			center += lookUp * SPACE_MOVE;
+			break;
 
-	case Directions::DOWN:
-		eye -= lookUp * SPACE_MOVE;
-		center -= lookUp * SPACE_MOVE;
-		break;
+		case Directions::DOWN:
+			position -= lookUp * SPACE_MOVE;
+			center -= lookUp * SPACE_MOVE;
+			break;
 	}
 
-	view = glm::lookAt(eye, center, lookUp);
+	view = glm::lookAt(position, center, lookUp);
+	viewChanged = true;
+}
+
+PerspectiveCamera::PerspectiveCamera()
+{
+	project();
+}
+
+void PerspectiveCamera::setProjectionViewingAngle(float angle)
+{
+	viewingAngle = angle;
+	project();
+}
+
+void PerspectiveCamera::setProjectionAspectRatio(float ratio)
+{
+	aspectRatio = ratio;
+	project();
+}
+
+void PerspectiveCamera::project()
+{
+	projection = glm::perspective(glm::radians(viewingAngle), aspectRatio, nearPlane, farPlane);
+	projectionChanged = true;
+}
+
+OrthograficCamera::OrthograficCamera()
+{
+	project();
+}
+
+void OrthograficCamera::setProjectionLeftPlane(float left)
+{
+	leftPlane = left;
+	project();
+}
+
+void OrthograficCamera::setProjectionRightPlane(float right)
+{
+	rightPlane = right;
+	project();
+}
+
+void OrthograficCamera::setProjectionTopPlane(float top)
+{
+	topPlane = top;
+	project();
+}
+
+void OrthograficCamera::setProjectionBottomPlane(float bottom)
+{
+	bottomPlane = bottom;
+	project();
+}
+
+void OrthograficCamera::project()
+{
+	projection = glm::ortho(leftPlane, rightPlane, nearPlane, farPlane);
+	projectionChanged = true;
 }
